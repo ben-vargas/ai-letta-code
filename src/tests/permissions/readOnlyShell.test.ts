@@ -445,6 +445,50 @@ describe("isReadOnlyShellCommand", () => {
     });
   });
 
+  describe("letta CLI commands", () => {
+    test("allows letta memfs tokens", () => {
+      expect(isReadOnlyShellCommand("letta memfs tokens")).toBe(true);
+    });
+
+    test("allows letta memfs tokens with flags", () => {
+      expect(
+        isReadOnlyShellCommand("letta memfs tokens --quiet --format json"),
+      ).toBe(true);
+      expect(
+        isReadOnlyShellCommand(
+          "letta memfs tokens --memory-dir /tmp/mem --top 10",
+        ),
+      ).toBe(true);
+    });
+
+    test("allows letta memfs help", () => {
+      expect(isReadOnlyShellCommand("letta memfs help")).toBe(true);
+    });
+
+    test("blocks unknown letta memfs action", () => {
+      // restore/backup/pull/diff mutate state — not in read-only allowlist
+      expect(isReadOnlyShellCommand("letta memfs restore")).toBe(false);
+      expect(isReadOnlyShellCommand("letta memfs pull")).toBe(false);
+      expect(isReadOnlyShellCommand("letta memfs delete")).toBe(false);
+    });
+
+    test("blocks letta memfs with no action", () => {
+      expect(isReadOnlyShellCommand("letta memfs")).toBe(false);
+    });
+
+    test("blocks unknown letta group", () => {
+      expect(isReadOnlyShellCommand("letta memory tokens")).toBe(false);
+      expect(isReadOnlyShellCommand("letta install plugin")).toBe(false);
+      expect(isReadOnlyShellCommand("letta doctor")).toBe(false);
+    });
+
+    test("allows letta memfs tokens piped to a safe command", () => {
+      expect(
+        isReadOnlyShellCommand("letta memfs tokens --format json | head -5"),
+      ).toBe(true);
+    });
+  });
+
   describe("dangerous operators", () => {
     test("blocks output redirection to files", () => {
       expect(isReadOnlyShellCommand("cat file > output.txt")).toBe(false);

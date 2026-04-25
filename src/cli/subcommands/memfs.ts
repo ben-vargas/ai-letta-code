@@ -9,6 +9,7 @@ import {
   isGitRepo,
   pullMemory,
 } from "../../agent/memoryGit";
+import { runMemfsTokensAction } from "./memfsTokens";
 
 function printUsage(): void {
   console.log(
@@ -21,10 +22,14 @@ Usage:
   letta memfs restore --from <backup> --force [--agent <id>]
   letta memfs export --agent <id> --out <dir>
   letta memfs pull [--agent <id>]
+  letta memfs tokens [--memory-dir <path>] [--agent <id>] [--top <N>]
+                     [--format text|json] [--quiet]
 
 Notes:
-  - Requires agent id via --agent or LETTA_AGENT_ID.
-  - Output is JSON only.
+  - Most actions require agent id via --agent or LETTA_AGENT_ID and output JSON.
+  - \`tokens\` additionally accepts --memory-dir or $MEMORY_DIR; reports the
+    estimated token size of system/. Policy (whether a size is concerning) is
+    up to the caller.
   - Memory is git-backed. Use git commands for commit/push.
 
 Examples:
@@ -32,6 +37,8 @@ Examples:
   letta memfs pull --agent agent-123
   letta memfs backup --agent agent-123
   letta memfs export --agent agent-123 --out /tmp/letta-memfs-agent-123
+  letta memfs tokens
+  letta memfs tokens --memory-dir ~/.letta/agents/agent-123/memory --format json
 `.trim(),
   );
 }
@@ -47,6 +54,10 @@ const MEMFS_OPTIONS = {
   from: { type: "string" },
   force: { type: "boolean" },
   out: { type: "string" },
+  "memory-dir": { type: "string" },
+  top: { type: "string" },
+  format: { type: "string" },
+  quiet: { type: "boolean" },
 } as const;
 
 function parseMemfsArgs(argv: string[]) {
@@ -133,6 +144,18 @@ export async function runMemfsSubcommand(argv: string[]): Promise<number> {
   }
 
   const agentId = getAgentId(parsed.values.agent, parsed.values["agent-id"]);
+
+  // `tokens` has its own input resolution (--memory-dir / $MEMORY_DIR first,
+  // then falls back to agent id). Short-circuit before the agent-id hard check.
+  if (action === "tokens") {
+    return runMemfsTokensAction({
+      memoryDir: parsed.values["memory-dir"],
+      agentMemoryDir: agentId ? getMemoryRoot(agentId) : undefined,
+      top: parsed.values.top,
+      format: parsed.values.format,
+      quiet: Boolean(parsed.values.quiet),
+    });
+  }
 
   if (!agentId) {
     console.error(
