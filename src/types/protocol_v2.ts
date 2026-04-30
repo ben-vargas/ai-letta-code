@@ -752,6 +752,41 @@ export interface MemoryFileAtRefCommand {
   ref: string;
 }
 
+/** Read a file from the agent's MemFS working tree. Use base64 for binary. */
+export interface ReadMemoryFileCommand {
+  type: "read_memory_file";
+  /** Echoed back in the response for request correlation. */
+  request_id: string;
+  /** The agent whose memory to read. */
+  agent_id: string;
+  /** Relative to the memory root. */
+  path: string;
+  /** Defaults to "utf8". */
+  encoding?: "utf8" | "base64";
+}
+
+/**
+ * Write a file into the agent's MemFS and commit + push.
+ *
+ * Use for agent memory writes (e.g. profile images). Path is
+ * relative to the memory root and is rejected if it escapes the root.
+ */
+export interface WriteMemoryFileCommand {
+  type: "write_memory_file";
+  /** Echoed back in the response for request correlation. */
+  request_id: string;
+  /** The agent whose memory to write to. */
+  agent_id: string;
+  /** Relative path within the memory directory (e.g. "profile.png"). */
+  path: string;
+  /** Content to write — utf8 string or base64-encoded bytes. */
+  content: string;
+  /** Encoding of `content`. Defaults to "utf8". */
+  encoding?: "utf8" | "base64";
+  /** Optional commit message; defaults to a sensible fallback. */
+  commit_message?: string;
+}
+
 export interface MemoryCommitDiffCommand {
   type: "memory_commit_diff";
   /** Echoed back in the response for request correlation. */
@@ -1514,6 +1549,8 @@ export type WsProtocolCommand =
   | MemoryHistoryCommand
   | MemoryFileAtRefCommand
   | MemoryCommitDiffCommand
+  | ReadMemoryFileCommand
+  | WriteMemoryFileCommand
   | EnableMemfsCommand
   | ListModelsCommand
   | UpdateModelCommand

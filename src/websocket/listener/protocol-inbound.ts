@@ -47,6 +47,7 @@ import type {
   MemoryFileAtRefCommand,
   MemoryHistoryCommand,
   ReadFileCommand,
+  ReadMemoryFileCommand,
   RuntimeScope,
   SearchBranchesCommand,
   SearchFilesCommand,
@@ -64,6 +65,7 @@ import type {
   UpdateToolsetCommand,
   WatchFileCommand,
   WriteFileCommand,
+  WriteMemoryFileCommand,
   WsProtocolCommand,
 } from "../../types/protocol_v2";
 import { isValidApprovalResponseBody } from "./approval";
@@ -534,6 +536,54 @@ export function isMemoryFileAtRefCommand(
     typeof c.agent_id === "string" &&
     typeof c.file_path === "string" &&
     typeof c.ref === "string"
+  );
+}
+
+export function isReadMemoryFileCommand(
+  value: unknown,
+): value is ReadMemoryFileCommand {
+  if (!value || typeof value !== "object") return false;
+  const c = value as {
+    type?: unknown;
+    request_id?: unknown;
+    agent_id?: unknown;
+    path?: unknown;
+    encoding?: unknown;
+  };
+  return (
+    c.type === "read_memory_file" &&
+    typeof c.request_id === "string" &&
+    typeof c.agent_id === "string" &&
+    typeof c.path === "string" &&
+    (c.encoding === undefined ||
+      c.encoding === "utf8" ||
+      c.encoding === "base64")
+  );
+}
+
+export function isWriteMemoryFileCommand(
+  value: unknown,
+): value is WriteMemoryFileCommand {
+  if (!value || typeof value !== "object") return false;
+  const c = value as {
+    type?: unknown;
+    request_id?: unknown;
+    agent_id?: unknown;
+    path?: unknown;
+    content?: unknown;
+    encoding?: unknown;
+    commit_message?: unknown;
+  };
+  return (
+    c.type === "write_memory_file" &&
+    typeof c.request_id === "string" &&
+    typeof c.agent_id === "string" &&
+    typeof c.path === "string" &&
+    typeof c.content === "string" &&
+    (c.encoding === undefined ||
+      c.encoding === "utf8" ||
+      c.encoding === "base64") &&
+    (c.commit_message === undefined || typeof c.commit_message === "string")
   );
 }
 
@@ -1411,6 +1461,8 @@ export function parseServerMessage(
       isMemoryHistoryCommand(parsed) ||
       isMemoryFileAtRefCommand(parsed) ||
       isMemoryCommitDiffCommand(parsed) ||
+      isReadMemoryFileCommand(parsed) ||
+      isWriteMemoryFileCommand(parsed) ||
       isEnableMemfsCommand(parsed) ||
       isListModelsCommand(parsed) ||
       isUpdateModelCommand(parsed) ||
