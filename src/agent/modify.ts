@@ -456,13 +456,12 @@ export async function updateAgentSystemPrompt(
 }
 
 /**
- * Updates an agent's system prompt to swap between managed memory modes.
- *
- * Uses the shared memory prompt reconciler so we safely replace managed memory
- * sections without corrupting fenced code blocks or leaving orphan fragments.
+ * Updates an agent's system prompt to swap between full prompt variants when
+ * the stored prompt recipe is known. Custom prompts are already complete and
+ * are left unchanged.
  *
  * @param agentId - The agent ID to update
- * @param enableMemfs - Whether to enable (add) or disable (remove) the memfs addon
+ * @param enableMemfs - Whether to use the memfs or standard full prompt variant
  * @returns Result with success status and message
  */
 export async function updateAgentSystemPromptMemfs(
@@ -471,9 +470,7 @@ export async function updateAgentSystemPromptMemfs(
 ): Promise<SystemPromptUpdateResult> {
   try {
     const { settingsManager } = await import("../settings-manager");
-    const { isKnownPreset, buildSystemPrompt, swapMemoryAddon } = await import(
-      "./promptAssets"
-    );
+    const { isKnownPreset, buildSystemPrompt } = await import("./promptAssets");
 
     const newMode = enableMemfs ? "memfs" : "standard";
     const storedPreset = settingsManager.isReady
@@ -485,7 +482,7 @@ export async function updateAgentSystemPromptMemfs(
       nextSystemPrompt = buildSystemPrompt(storedPreset, newMode);
     } else {
       const agent = await getBackend().retrieveAgent(agentId);
-      nextSystemPrompt = swapMemoryAddon(agent.system || "", newMode);
+      nextSystemPrompt = agent.system || "";
     }
 
     await getBackend().updateAgent(agentId, {
@@ -495,8 +492,8 @@ export async function updateAgentSystemPromptMemfs(
     return {
       success: true,
       message: enableMemfs
-        ? "System prompt updated to include Memory Filesystem section"
-        : "System prompt updated to include standard Memory section",
+        ? "System prompt updated for memfs memory mode"
+        : "System prompt updated for standard memory mode",
     };
   } catch (error) {
     return {
