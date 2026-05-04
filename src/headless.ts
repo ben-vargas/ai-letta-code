@@ -1008,7 +1008,7 @@ export async function handleHeadlessCommand(
   if (!agent && specifiedAgentId) {
     try {
       agent = await backend.retrieveAgent(specifiedAgentId, {
-        include: ["agent.secrets", "agent.tools"],
+        include: ["agent.secrets", "agent.tools", "agent.tags"],
       });
     } catch (_error) {
       console.error(`Agent ${specifiedAgentId} not found`);
@@ -1056,7 +1056,9 @@ export async function handleHeadlessCommand(
     );
     if (localAgentId) {
       try {
-        agent = await backend.retrieveAgent(localAgentId);
+        agent = await backend.retrieveAgent(localAgentId, {
+          include: ["agent.tags"],
+        });
       } catch (_error) {
         // Local LRU agent doesn't exist - log and continue
         console.error(`Unable to locate agent ${localAgentId} in .letta/`);
@@ -1070,7 +1072,9 @@ export async function handleHeadlessCommand(
     const globalAgentId = settingsManager.getGlobalLastAgentId();
     if (globalAgentId) {
       try {
-        agent = await backend.retrieveAgent(globalAgentId);
+        agent = await backend.retrieveAgent(globalAgentId, {
+          include: ["agent.tags"],
+        });
       } catch (_error) {
         // Global LRU agent doesn't exist
       }
@@ -1138,6 +1142,18 @@ export async function handleHeadlessCommand(
 
   const isSubagent = process.env.LETTA_CODE_AGENT_ROLE === "subagent";
   const startupMemfsFlag = autoEnableMemfsForFreshAgent ? true : memfsFlag;
+
+  if (backend.capabilities.remoteMemfs && !autoEnableMemfsForFreshAgent) {
+    const { hydrateMemfsSettingFromAgent } = await import(
+      "./agent/memoryFilesystem"
+    );
+    const memfsEnabled = await hydrateMemfsSettingFromAgent(agent);
+    if (!memfsEnabled) {
+      console.warn(
+        "Warning: this agent does not have git-backed memory enabled. Run `/memfs enable` to enable MemFS.",
+      );
+    }
+  }
 
   // Captured so prompt logic below can await it when needed.
   let memfsBgPromise: Promise<unknown> | undefined;
